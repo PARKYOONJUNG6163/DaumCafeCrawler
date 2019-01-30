@@ -1,7 +1,7 @@
 
 # coding: utf-8
 
-# In[14]:
+# In[18]:
 
 
 from selenium import webdriver
@@ -14,7 +14,7 @@ import pymysql
 import re
 
 
-# In[4]:
+# In[19]:
 
 
 def createDB(conn,dbname):
@@ -30,25 +30,26 @@ def createDB(conn,dbname):
     conn.commit()
 
 
-# In[5]:
+# In[20]:
 
 
 def save_DB() : 
+    temp = keyword.replace(' ','_')
     conn = pymysql.connect(host = "", user = "root", password = "", charset = "utf8")
-    dbname = 'daum_cafe_'+ keyword
+    dbname = 'daum_cafe_'+ temp
     createDB(conn,dbname)
     curs = conn.cursor()
     curs.execute("""use """+dbname)
 
-    query = """CREATE TABLE IF NOT EXISTS """+ keyword+ """(ID int, URL varchar(200), Title varchar(100), Date varchar(20), Writer varchar(50), cafe_like int, Count int,Text text(62200));"""
+    query = """CREATE TABLE IF NOT EXISTS """+ temp+ """(ID int, URL varchar(200), Title varchar(100), Date varchar(20), Writer varchar(50), cafe_like int, Count int,Text text(62200));"""
     curs.execute(query)
 
-    query = """ALTER TABLE """ + keyword +""" CHARACTER SET utf8 COLLATE utf8_general_ci;"""
+    query = """ALTER TABLE """ + temp +""" CHARACTER SET utf8 COLLATE utf8_general_ci;"""
     curs.execute(query)
 
     conn.commit()
     
-    select_query = """SELECT * from """ + keyword 
+    select_query = """SELECT * from """ + temp
     index = curs.execute(select_query)
 
     for value in total_list :
@@ -60,7 +61,7 @@ def save_DB() :
         count = value[5]
         content = value[6]
 
-        query = """insert into """ + keyword + """(ID, URL, Title, Date, Writer, cafe_like, Count, Text) values (%s, %s, %s, %s, %s, %s, %s, %s) ; """
+        query = """insert into """ + temp + """(ID, URL, Title, Date, Writer, cafe_like, Count, Text) values (%s, %s, %s, %s, %s, %s, %s, %s) ; """
         curs.execute(query, (str(index), url, title, date,writer,like,count,content))
 
         index = index + 1 
@@ -88,7 +89,7 @@ def visible_texts(soup):
     return RE_SPACES.sub('  ', text)
 
 
-# In[6]:
+# In[22]:
 
 
 keyword = input("Keyword ? ")
@@ -105,7 +106,7 @@ start_date = start_year+start_month+start_day
 end_date = end_year+end_month+end_day
 
 
-# In[22]:
+# In[25]:
 
 
 dt_start_date = datetime.datetime.strptime(start_date,"%Y%m%d").date()
@@ -126,9 +127,10 @@ while dt_start_1 <= dt_end_date :
         driver.implicitly_wait(3)
         driver.get(p_url)
         soup = BeautifulSoup(driver.page_source,'html.parser')
-
+    
         span_tags = soup.findAll("span", {"class" : "f_nb date"})
         a_tags = driver.find_elements_by_xpath("//a[@class='f_link_b']")
+        
         # 한 페이지에 있는 링크들 전부 가져오기
         for a,d in zip(a_tags,span_tags) :
             url = a.get_attribute("href")
@@ -136,15 +138,23 @@ while dt_start_1 <= dt_end_date :
             driver = webdriver.Chrome('./chromedriver/chromedriver')
             driver.implicitly_wait(3)
             driver.get(url)
+            
             # 페이지 변환      
             frame = driver.find_element_by_name('down')
             driver.switch_to_frame(frame)
 
             soup = BeautifulSoup(driver.page_source,'html.parser')
+            
+            try :
+                cafe_title = soup.find("div", {"class" : "article_subject"}).find("span", {"class" : "b"}).get_text().strip().encode('cp949','ignore')
+                cafe_title = cafe_title.decode('cp949','ignore')
+            except :
+                continue
                 
-            cafe_title = soup.find("div", {"class" : "article_subject"}).find("span", {"class" : "b"}).get_text().strip().encode('cp949','ignore')
-            cafe_title = cafe_title.decode('cp949','ignore')
+            if len(cafe_title) > 100 : 
+                cafe_title = a.get_attribute("text").replace('\n','')
             print(cafe_title)
+            
             cafe_date = d.get_text()
             print(cafe_date)
             try :
@@ -183,7 +193,7 @@ while dt_start_1 <= dt_end_date :
     save_DB()
 
 
-# In[12]:
+# In[26]:
 
 
 #DB삭제시 이용
